@@ -68,14 +68,14 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 .iconbtn:active{transform:scale(.9)}
 
 /* ---------------- FILTER CHIPS ---------------- */
-.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none}
+.filters{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none}
 .filters::-webkit-scrollbar{display:none}
 .chip{
-  flex:0 0 auto;font-family:'Manrope';font-size:12.5px;font-weight:600;letter-spacing:.01em;
-  padding:8px 14px;border-radius:999px;border:1px solid var(--card-border);background:var(--chip);
-  color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s;
+  flex:1 1 auto;font-family:'Manrope';font-size:11px;font-weight:600;letter-spacing:0;
+  padding:6px 7px;border-radius:999px;border:1px solid var(--card-border);background:var(--chip);
+  color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s;text-align:center;
 }
-.chip .n{font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:5px;opacity:.7}
+.chip .n{font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:3px;opacity:.7;font-size:10px}
 .chip.active{color:var(--ink);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
 
 /* ---------------- ADD BUTTON ---------------- */
@@ -175,7 +175,7 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
   <div class="filters" id="filters">
     <button class="chip active" data-f="all"  onclick="setFilter('all',this)">All <span class="n" id="c-all">0</span></button>
     <button class="chip" data-f="cand" onclick="setFilter('cand',this)">Candidate <span class="n" id="c-cand">0</span></button>
-    <button class="chip" data-f="near" onclick="setFilter('near',this)">Near term <span class="n" id="c-near">0</span></button>
+    <button class="chip" data-f="near" onclick="setFilter('near',this)">Near <span class="n" id="c-near">0</span></button>
     <button class="chip" data-f="in"   onclick="setFilter('in',this)">Entered <span class="n" id="c-in">0</span></button>
     <button class="chip" data-f="no"   onclick="setFilter('no',this)">Avoid <span class="n" id="c-no">0</span></button>
   </div>
