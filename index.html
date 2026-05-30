@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Stock Log — Codex</title>
+
+<!-- ===== PWA WIRING (makes it installable from GitHub Pages) ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0e0e0f">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+/* ---------------- THEME TOKENS ---------------- */
+:root{
+  --gold:#c5a23e; --emerald:#3ea577; --rose:#d06a6a; --sky:#5b94c9;
+  --radius:18px;
+}
+/* DARK (default) */
+html[data-theme="dark"]{
+  --bg:#0e0e0f;
+  --orb1:rgba(197,162,62,.20); --orb2:rgba(62,165,119,.18);
+  --ink:#f4f1ea; --muted:#8c8a86; --faint:#5f5d59;
+  --card:rgba(255,255,255,.045); --card-border:rgba(255,255,255,.10);
+  --field:rgba(0,0,0,.28); --field-border:rgba(255,255,255,.10);
+  --shadow:0 8px 30px rgba(0,0,0,.35);
+  --chip:rgba(255,255,255,.06);
+}
+/* LIGHT — crystal white, neutral (no cream/grey cast) */
+html[data-theme="light"]{
+  --bg:#ffffff;
+  --orb1:rgba(197,162,62,.14); --orb2:rgba(62,165,119,.12);
+  --ink:#161719; --muted:#6a6e75; --faint:#a7abb2;
+  --card:rgba(255,255,255,.72); --card-border:rgba(20,22,28,.08);
+  --field:rgba(20,22,28,.035); --field-border:rgba(20,22,28,.10);
+  --shadow:0 8px 30px rgba(20,30,60,.08);
+  --chip:rgba(20,22,28,.05);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:'Manrope',sans-serif; background:var(--bg); color:var(--ink);
+  min-height:100vh; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  overflow-x:hidden; position:relative; transition:background .4s,color .4s;
+}
+/* ambient orbs for liquid-glass depth */
+body::before,body::after{content:'';position:fixed;border-radius:50%;filter:blur(90px);z-index:0;pointer-events:none;transition:background .4s}
+body::before{width:360px;height:360px;background:var(--orb1);top:-130px;right:-110px}
+body::after{width:320px;height:320px;background:var(--orb2);bottom:-130px;left:-120px}
+
+.wrap{position:relative;z-index:1;max-width:600px;margin:0 auto;padding:26px 18px 90px}
+
+/* ---------------- HEADER ---------------- */
+header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;gap:12px}
+.brand .kicker{font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);margin-bottom:7px}
+.brand h1{font-family:'Fraunces',serif;font-weight:600;font-size:32px;line-height:1;letter-spacing:-.02em}
+.hbtns{display:flex;gap:8px;flex-shrink:0}
+.iconbtn{
+  width:40px;height:40px;border-radius:12px;border:1px solid var(--card-border);background:var(--card);
+  color:var(--ink);font-size:17px;cursor:pointer;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;
+  transition:transform .12s,border-color .12s;
+}
+.iconbtn:active{transform:scale(.9)}
+
+/* ---------------- FILTER CHIPS ---------------- */
+.filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;scrollbar-width:none}
+.filters::-webkit-scrollbar{display:none}
+.chip{
+  flex:0 0 auto;font-family:'Manrope';font-size:12.5px;font-weight:600;letter-spacing:.01em;
+  padding:8px 14px;border-radius:999px;border:1px solid var(--card-border);background:var(--chip);
+  color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .15s;
+}
+.chip .n{font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:5px;opacity:.7}
+.chip.active{color:var(--ink);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
+
+/* ---------------- ADD BUTTON ---------------- */
+.addbtn{
+  width:100%;background:var(--gold);color:#1a1408;border:none;border-radius:14px;
+  padding:15px;font-family:'Manrope';font-weight:700;font-size:15px;letter-spacing:.01em;cursor:pointer;
+  margin-bottom:18px;transition:transform .12s,filter .12s;box-shadow:var(--shadow);
+}
+.addbtn:active{transform:scale(.985);filter:brightness(1.06)}
+
+/* ---------------- STOCK CARD ---------------- */
+.card{
+  position:relative;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
+  padding:16px 16px 14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  margin-bottom:14px;box-shadow:var(--shadow);
+  border-left:3px solid var(--faint); transition:border-color .2s,opacity .2s,transform .2s;
+}
+.card.s-cand{border-left-color:var(--gold)}
+.card.s-near{border-left-color:var(--sky)}
+.card.s-in{border-left-color:var(--emerald)}
+.card.s-no{border-left-color:var(--rose)}
+
+.card .toprow{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.tk-input{
+  flex:1;background:transparent;border:none;color:var(--ink);font-family:'Fraunces',serif;font-weight:600;
+  font-size:21px;letter-spacing:-.01em;padding:2px 0;min-width:0;
+}
+.tk-input::placeholder{color:var(--faint);font-style:italic}
+.tk-input:focus{outline:none}
+
+.status-sel{
+  flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;border-radius:999px;padding:7px 11px;border:1px solid var(--card-border);
+  background:var(--field);color:var(--muted);cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;
+}
+.card.s-cand .status-sel{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 50%,transparent)}
+.card.s-near .status-sel{color:var(--sky);border-color:color-mix(in srgb,var(--sky) 50%,transparent)}
+.card.s-in   .status-sel{color:var(--emerald);border-color:color-mix(in srgb,var(--emerald) 50%,transparent)}
+.card.s-no   .status-sel{color:var(--rose);border-color:color-mix(in srgb,var(--rose) 50%,transparent)}
+
+/* field grid */
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:11px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field.span3{grid-column:1 / -1}
+.field label{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field .sub{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500}
+.field input,.field select{
+  width:100%;background:var(--field);border:1px solid var(--field-border);border-radius:10px;
+  color:var(--ink);padding:9px 10px;font-size:14px;font-family:'Manrope';transition:border-color .15s;
+}
+.field input.num{font-family:'JetBrains Mono',monospace;font-weight:500}
+.field input:focus,.field select:focus{outline:none;border-color:var(--gold)}
+.field select{appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 17px,calc(100% - 10px) 17px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:26px}
+
+/* R:R readout */
+.rr-box{display:flex;flex-direction:column;gap:4px}
+.rr-box label{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.rr-val{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;padding:9px 10px;border-radius:10px;
+  background:var(--field);border:1px solid var(--field-border);text-align:center;color:var(--faint)}
+.rr-val.good{color:var(--emerald);border-color:color-mix(in srgb,var(--emerald) 40%,transparent)}
+.rr-val.ok{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 40%,transparent)}
+.rr-val.bad{color:var(--rose);border-color:color-mix(in srgb,var(--rose) 40%,transparent)}
+
+.note-input{
+  width:100%;background:var(--field);border:1px solid var(--field-border);border-radius:11px;color:var(--ink);
+  padding:10px 12px;font-size:13.5px;font-family:'Manrope';line-height:1.5;resize:vertical;min-height:42px;
+}
+.note-input::placeholder{color:var(--faint)}
+.note-input:focus{outline:none;border-color:var(--gold)}
+
+.card .foot{display:flex;justify-content:flex-end;margin-top:9px}
+.del{background:none;border:none;color:var(--faint);font-family:'JetBrains Mono',monospace;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:4px 2px;transition:color .15s}
+.del:active{color:var(--rose)}
+
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:40px 10px;font-style:italic}
+
+footer{text-align:center;color:var(--faint);font-size:10px;margin-top:22px;font-family:'JetBrains Mono',monospace;letter-spacing:.12em}
+footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--faint)}
+.tps{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="kicker">Swing Trader's Codex</div>
+      <h1>Stock Log</h1>
+    </div>
+    <div class="hbtns">
+      <button class="iconbtn" id="themeBtn" title="Toggle theme" onclick="toggleTheme()">☾</button>
+    </div>
+  </header>
+
+  <div class="filters" id="filters">
+    <button class="chip active" data-f="all"  onclick="setFilter('all',this)">All <span class="n" id="c-all">0</span></button>
+    <button class="chip" data-f="cand" onclick="setFilter('cand',this)">Candidate <span class="n" id="c-cand">0</span></button>
+    <button class="chip" data-f="near" onclick="setFilter('near',this)">Near term <span class="n" id="c-near">0</span></button>
+    <button class="chip" data-f="in"   onclick="setFilter('in',this)">Entered <span class="n" id="c-in">0</span></button>
+    <button class="chip" data-f="no"   onclick="setFilter('no',this)">Avoid <span class="n" id="c-no">0</span></button>
+  </div>
+
+  <button class="addbtn" onclick="addStock()">＋  Add a stock</button>
+
+  <div id="list"></div>
+
+  <footer>
+    STORED ON THIS DEVICE · v1 &nbsp;·&nbsp;
+    <a onclick="exportData()">Backup</a> &nbsp;·&nbsp;
+    <a onclick="document.getElementById('imp').click()">Restore</a>
+    <input id="imp" class="tps" type="file" accept="application/json" onchange="importData(event)">
+  </footer>
+</div>
+
+<script>
+/* ---------------- CONSTANTS ---------------- */
+const SETUPS = ["Pullback to MA","Flat Base","Cup & Handle","Ascending Triangle",
+  "High Tight Flag","Pocket Pivot","Shakeout & Reclaim","VCP","Double Bottom","Ascending Base"];
+const STATUS = [
+  {v:"cand", label:"Entry candidate"},
+  {v:"near", label:"Possible · near term"},
+  {v:"in",   label:"Entered"},
+  {v:"no",   label:"Do not buy"}
+];
+const KEY = 'codex_stock_log_v1';
+const TKEY = 'codex_stock_log_theme';
+
+/* ---------------- STATE ---------------- */
+let stocks = [];
+try{ stocks = JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ stocks = []; }
+let filter = 'all';
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(stocks)); }catch(e){} }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+/* ---------------- THEME ---------------- */
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeBtn').textContent = (t==='dark') ? '☾' : '☀';
+  document.querySelector('meta[name=theme-color]').setAttribute('content', t==='dark' ? '#0e0e0f' : '#ffffff');
+}
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur==='dark' ? 'light' : 'dark';
+  applyTheme(next); try{ localStorage.setItem(TKEY,next); }catch(e){}
+}
+applyTheme(localStorage.getItem(TKEY) || 'dark');
+
+/* ---------------- R:R ---------------- */
+function rr(price,target,stop){
+  const p=parseFloat(price),t=parseFloat(target),s=parseFloat(stop);
+  if(isNaN(p)||isNaN(t)||isNaN(s)||p<=0) return {txt:'—',cls:''};
+  const reward=t-p, risk=p-s;
+  if(risk<=0||reward<=0) return {txt:'—',cls:'bad'};
+  const r=reward/risk;
+  const cls = r>=2 ? 'good' : (r>=1 ? 'ok':'bad');
+  return {txt:r.toFixed(1)+' : 1', cls};
+}
+function pct(price,other){
+  const p=parseFloat(price),o=parseFloat(other);
+  if(isNaN(p)||isNaN(o)||p<=0) return '';
+  const v=(o-p)/p*100;
+  return (v>=0?'+':'')+v.toFixed(1)+'%';
+}
+
+/* ---------------- CARD ---------------- */
+function buildCard(st){
+  const card=document.createElement('div');
+  card.className='card s-'+st.status;
+  card.dataset.id=st.id; card.dataset.status=st.status;
+
+  const setupOpts = ['<option value="">Setup…</option>']
+    .concat(SETUPS.map(s=>`<option ${st.setup===s?'selected':''}>${s}</option>`)).join('');
+  const statusOpts = STATUS.map(o=>`<option value="${o.v}" ${st.status===o.v?'selected':''}>${o.label}</option>`).join('');
+
+  card.innerHTML = `
+    <div class="toprow">
+      <input class="tk-input" placeholder="Stock name" value="${esc(st.name)}" data-k="name">
+      <select class="status-sel" data-k="status">${statusOpts}</select>
+    </div>
+    <div class="grid">
+      <div class="field"><label>Current ₹</label><input class="num" inputmode="decimal" placeholder="0" value="${esc(st.price)}" data-k="price"></div>
+      <div class="field"><label>Target ₹</label><input class="num" inputmode="decimal" placeholder="0" value="${esc(st.target)}" data-k="target"><span class="sub good t-sub"></span></div>
+      <div class="field"><label>Stop ₹</label><input class="num" inputmode="decimal" placeholder="0" value="${esc(st.stop)}" data-k="stop"><span class="sub bad s-sub" style="color:var(--rose)"></span></div>
+      <div class="field span3" style="grid-template-columns:none;display:grid;grid-template-columns:1.6fr 1fr;gap:9px">
+        <div class="field"><label>Setup</label><select data-k="setup">${setupOpts}</select></div>
+        <div class="rr-box"><label>Risk : Reward</label><div class="rr-val rr-out">—</div></div>
+      </div>
+      <div class="field span3"><label>Entry date</label><input type="date" class="num" value="${esc(st.date)}" data-k="date"></div>
+    </div>
+    <textarea class="note-input" placeholder="Notes — pivot, trigger, sector, anything…" data-k="note">${esc(st.note)}</textarea>
+    <div class="foot"><button class="del">Delete</button></div>
+  `;
+
+  // wire inputs/selects
+  card.querySelectorAll('[data-k]').forEach(el=>{
+    const k=el.dataset.k;
+    const ev = (el.tagName==='SELECT'||el.type==='date') ? 'change' : 'input';
+    el.addEventListener(ev, ()=>{
+      st[k]=el.value; save();
+      if(k==='status'){ updateStatusClass(card,st.status); recount(); applyFilterTo(card); }
+      if(k==='price'||k==='target'||k==='stop'){ refreshRR(card,st); }
+    });
+  });
+  card.querySelector('.del').addEventListener('click', ()=>{
+    if(!confirm('Delete '+(st.name||'this stock')+'?')) return;
+    stocks=stocks.filter(x=>x.id!==st.id); save();
+    card.style.opacity='0'; card.style.transform='scale(.97)';
+    setTimeout(()=>{ card.remove(); recount(); checkEmpty(); },180);
+  });
+
+  refreshRR(card,st);
+  return card;
+}
+
+function refreshRR(card,st){
+  const out=card.querySelector('.rr-out');
+  const r=rr(st.price,st.target,st.stop);
+  out.textContent=r.txt; out.className='rr-val rr-out '+r.cls;
+  card.querySelector('.t-sub').textContent=pct(st.price,st.target);
+  card.querySelector('.s-sub').textContent=pct(st.price,st.stop);
+}
+function updateStatusClass(card,status){
+  card.className='card s-'+status; card.dataset.status=status;
+}
+
+/* ---------------- RENDER / FILTER ---------------- */
+const listEl=document.getElementById('list');
+function renderAll(){
+  listEl.innerHTML='';
+  stocks.forEach(st=>listEl.appendChild(buildCard(st)));
+  recount(); checkEmpty(); applyFilterAll();
+}
+function checkEmpty(){
+  if(!stocks.length && !listEl.querySelector('.card')){
+    listEl.innerHTML='<div class="empty">No stocks logged yet.<br>Tap “Add a stock” to begin.</div>';
+  }else{
+    const e=listEl.querySelector('.empty'); if(e && listEl.querySelector('.card')) e.remove();
+  }
+}
+function recount(){
+  const cnt={all:0,cand:0,near:0,in:0,no:0};
+  listEl.querySelectorAll('.card').forEach(c=>{cnt.all++; cnt[c.dataset.status]++;});
+  for(const k in cnt){ const el=document.getElementById('c-'+k); if(el) el.textContent=cnt[k]; }
+}
+function setFilter(f,btn){
+  filter=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilterAll();
+}
+function applyFilterAll(){ listEl.querySelectorAll('.card').forEach(applyFilterTo); }
+function applyFilterTo(card){
+  card.style.display = (filter==='all'||card.dataset.status===filter) ? '' : 'none';
+}
+
+/* ---------------- ADD ---------------- */
+function addStock(){
+  const st={id:uid(),name:'',price:'',target:'',stop:'',setup:'',status:'cand',date:today(),note:''};
+  stocks.unshift(st); save();
+  const e=listEl.querySelector('.empty'); if(e) e.remove();
+  const card=buildCard(st);
+  listEl.prepend(card);
+  recount(); applyFilterTo(card);
+  card.querySelector('.tk-input').focus();
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+/* ---------------- BACKUP / RESTORE ---------------- */
+function exportData(){
+  const blob=new Blob([JSON.stringify(stocks,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='stock-log-backup-'+today()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+}
+function importData(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const data=JSON.parse(r.result);
+      if(Array.isArray(data)){
+        if(!confirm('Replace current log with backup ('+data.length+' stocks)?')) return;
+        stocks=data.map(x=>({id:x.id||uid(),name:x.name||'',price:x.price||'',target:x.target||'',
+          stop:x.stop||'',setup:x.setup||'',status:x.status||'cand',date:x.date||today(),note:x.note||''}));
+        save(); renderAll();
+      } else alert('That file doesn’t look like a Stock Log backup.');
+    }catch(e){ alert('Could not read that file.'); }
+    ev.target.value='';
+  };
+  r.readAsText(f);
+}
+
+/* ---------------- HELPERS ---------------- */
+function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ---------------- SERVICE WORKER ---------------- */
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+
+renderAll();
+</script>
+</body>
+</html>
