@@ -158,6 +158,45 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 footer{text-align:center;color:var(--faint);font-size:10px;margin-top:22px;font-family:'JetBrains Mono',monospace;letter-spacing:.12em}
 footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1px dotted var(--faint)}
 .tps{display:none}
+.hid{display:none}
+
+/* ---------------- v3: ENTRY GATE MODAL ---------------- */
+.gate-ov{position:fixed;inset:0;background:rgba(8,8,10,.6);backdrop-filter:blur(4px);z-index:100;
+  display:none;align-items:flex-end;justify-content:center}
+.gate-ov.show{display:flex}
+.gate{width:100%;max-width:600px;background:var(--bg);border:1px solid var(--card-border);
+  border-radius:24px 24px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom))}
+.gate .g-kicker{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.gate .g-title{font-family:'Fraunces',serif;font-weight:600;font-size:22px;margin-bottom:4px}
+.gate .g-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.5}
+.gitem{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-radius:14px;margin-bottom:10px;
+  background:var(--card);border:1px solid var(--card-border)}
+.gitem .g-ic{flex:0 0 24px;height:24px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12px;margin-top:1px}
+.gitem.pass .g-ic{background:color-mix(in srgb,var(--emerald) 18%,transparent);color:var(--emerald)}
+.gitem.fail .g-ic{background:color-mix(in srgb,var(--rose) 18%,transparent);color:var(--rose)}
+.gitem .g-txt{flex:1}
+.gitem .g-name{font-weight:700;font-size:13.5px}
+.gitem .g-det{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);margin-top:3px}
+.gitem.fail .g-det{color:var(--rose)}
+.gitem.manual{cursor:pointer;transition:border-color .15s}
+.gitem.manual .g-ic{background:var(--field);color:var(--faint);border:1px solid var(--field-border)}
+.gitem.manual.checked{border-color:color-mix(in srgb,var(--emerald) 45%,transparent)}
+.gitem.manual.checked .g-ic{background:color-mix(in srgb,var(--emerald) 18%,transparent);color:var(--emerald);border-color:transparent}
+.gate-btns{display:flex;gap:10px;margin-top:16px}
+.gbtn{flex:1;border:none;border-radius:13px;padding:15px;font-family:'Manrope';font-weight:700;font-size:14px;cursor:pointer}
+.gbtn.ghost{background:var(--field);color:var(--muted);border:1px solid var(--field-border)}
+.gbtn.solid{background:var(--gold);color:#1a1408}
+.gbtn.solid:disabled{opacity:.35;cursor:not-allowed}
+.gate-hint{text-align:center;font-size:10.5px;color:var(--faint);margin-top:12px;font-family:'JetBrains Mono',monospace;letter-spacing:.04em}
+
+/* ---------------- v3: BACKUP BANNER ---------------- */
+.bkbanner{display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:12px 14px;border-radius:14px;
+  background:color-mix(in srgb,var(--rose) 10%,transparent);border:1px solid color-mix(in srgb,var(--rose) 28%,transparent)}
+.bkbanner span{flex:1;font-size:12px;font-weight:600;color:var(--ink);line-height:1.45}
+.bkbanner button{border:none;border-radius:9px;padding:8px 12px;font-family:'Manrope';font-weight:700;font-size:11.5px;cursor:pointer}
+.bkbanner .bk-now{background:var(--gold);color:#1a1408}
+.bkbanner .bk-later{background:transparent;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -172,6 +211,8 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
     </div>
   </header>
 
+  <div id="bkBanner" class="bkbanner hid"></div>
+
   <div class="filters" id="filters">
     <button class="chip active" data-f="all"  onclick="setFilter('all',this)">All <span class="n" id="c-all">0</span></button>
     <button class="chip" data-f="cand" onclick="setFilter('cand',this)">Candidate <span class="n" id="c-cand">0</span></button>
@@ -185,17 +226,32 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
   <div id="list"></div>
 
   <footer>
-    STORED ON THIS DEVICE · v1 &nbsp;·&nbsp;
+    STORED ON THIS DEVICE · v3 &nbsp;·&nbsp;
     <a onclick="exportData()">Backup</a> &nbsp;·&nbsp;
     <a onclick="document.getElementById('imp').click()">Restore</a>
     <input id="imp" class="tps" type="file" accept="application/json" onchange="importData(event)">
   </footer>
 </div>
 
+<!-- ===== v3: PRE-ENTRY GATE ===== -->
+<div class="gate-ov" id="gateOv">
+  <div class="gate">
+    <div class="g-kicker">Pre-Entry Gate</div>
+    <div class="g-title" id="gateTitle">Confirm entry</div>
+    <div class="g-sub">A trade is a defined entry, a defined stop, and at least 2:1. Pass every gate or it stays a watchlist name.</div>
+    <div id="gateChecks"></div>
+    <div class="gate-btns">
+      <button class="gbtn ghost" onclick="gateCancel()">Not yet</button>
+      <button class="gbtn solid" id="gateConfirm" onclick="gateConfirmEntry()" disabled>Mark entered</button>
+    </div>
+    <div class="gate-hint">GATES IN ORDER · STOP AT FIRST FAILURE</div>
+  </div>
+</div>
+
 <script>
 /* ---------------- CONSTANTS ---------------- */
-const SETUPS = ["Pullback to MA","Flat Base","Cup & Handle","Ascending Triangle",
-  "High Tight Flag","Pocket Pivot","Shakeout & Reclaim","VCP","Double Bottom","Ascending Base"];
+const SETUPS = ["9 EMA Pullback","21 EMA Pullback","Base Breakout","VCP","Stage 2 Breakout",
+  "Shakeout & Reclaim","Flat Base","Cup & Handle","High Tight Flag","Double Bottom","Ascending Base"];
 const STATUS = [
   {v:"cand", label:"Entry candidate"},
   {v:"near", label:"Possible · near term"},
@@ -250,7 +306,8 @@ function buildCard(st){
   card.className='card s-'+st.status;
   card.dataset.id=st.id; card.dataset.status=st.status;
 
-  const setupOpts = ['<option value="">Setup…</option>']
+  const legacy = (st.setup && !SETUPS.includes(st.setup)) ? `<option selected>${esc(st.setup)}</option>` : '';
+  const setupOpts = ['<option value="">Setup…</option>'+legacy]
     .concat(SETUPS.map(s=>`<option ${st.setup===s?'selected':''}>${s}</option>`)).join('');
   const statusOpts = STATUS.map(o=>`<option value="${o.v}" ${st.status===o.v?'selected':''}>${o.label}</option>`).join('');
 
@@ -278,8 +335,13 @@ function buildCard(st){
     const k=el.dataset.k;
     const ev = (el.tagName==='SELECT'||el.type==='date') ? 'change' : 'input';
     el.addEventListener(ev, ()=>{
+      // v3: entering a position must pass the gate first
+      if(k==='status' && el.value==='in' && st.status!=='in'){
+        openGate(card, st, el);
+        return;
+      }
       st[k]=el.value; save();
-      if(k==='status'){ updateStatusClass(card,st.status); recount(); applyFilterTo(card); }
+      if(k==='status'){ updateStatusClass(card,st.status); recount(); applyFilterTo(card); checkFilterEmpty(); }
       if(k==='price'||k==='target'||k==='stop'){ refreshRR(card,st); }
     });
   });
@@ -287,7 +349,7 @@ function buildCard(st){
     if(!confirm('Delete '+(st.name||'this stock')+'?')) return;
     stocks=stocks.filter(x=>x.id!==st.id); save();
     card.style.opacity='0'; card.style.transform='scale(.97)';
-    setTimeout(()=>{ card.remove(); recount(); checkEmpty(); },180);
+    setTimeout(()=>{ card.remove(); recount(); checkEmpty(); checkFilterEmpty(); },180);
   });
 
   refreshRR(card,st);
@@ -330,10 +392,89 @@ function setFilter(f,btn){
   btn.classList.add('active');
   applyFilterAll();
 }
-function applyFilterAll(){ listEl.querySelectorAll('.card').forEach(applyFilterTo); }
+function applyFilterAll(){ listEl.querySelectorAll('.card').forEach(applyFilterTo); checkFilterEmpty(); }
 function applyFilterTo(card){
   card.style.display = (filter==='all'||card.dataset.status===filter) ? '' : 'none';
 }
+/* v3 fix: show a message when the active filter hides every card */
+function checkFilterEmpty(){
+  let fe=document.getElementById('fempty');
+  const anyVisible=[...listEl.querySelectorAll('.card')].some(c=>c.style.display!=='none');
+  if(stocks.length && !anyVisible){
+    if(!fe){ fe=document.createElement('div'); fe.id='fempty'; fe.className='empty';
+      fe.textContent='Nothing in this bucket.'; listEl.appendChild(fe); }
+  } else if(fe) fe.remove();
+}
+
+/* ---------------- v3: PRE-ENTRY GATE ---------------- */
+let gateCtx=null; // {card, st, sel, manual:{earnings:false, weekly:false}}
+function openGate(card, st, sel){
+  gateCtx={card, st, sel, manual:{earnings:false, weekly:false}};
+  document.getElementById('gateTitle').textContent=(st.name||'This stock')+' — confirm entry';
+  renderGate();
+  document.getElementById('gateOv').classList.add('show');
+}
+function renderGate(){
+  const {st, manual}=gateCtx;
+  const p=parseFloat(st.price), t=parseFloat(st.target), s=parseFloat(st.stop);
+  const r=rr(st.price,st.target,st.stop);
+  const rrPass=!isNaN(p)&&!isNaN(t)&&!isNaN(s)&&p>0&&(t-p)>0&&(p-s)>0&&((t-p)/(p-s))>=2;
+  const stopPass=!isNaN(p)&&!isNaN(s)&&s>0&&s<p;
+  const stopPct=stopPass?(((s-p)/p*100).toFixed(1)+'% from price'):'Set a stop below current price';
+  const rows=[
+    {cls:rrPass?'pass':'fail', ic:rrPass?'✓':'✕', name:'Risk : Reward ≥ 2 : 1',
+     det:rrPass?('Currently '+r.txt):('Currently '+r.txt+' — fix target/stop or skip the trade')},
+    {cls:stopPass?'pass':'fail', ic:stopPass?'✓':'✕', name:'Stop-loss defined',
+     det:stopPct},
+  ];
+  let html=rows.map(x=>`<div class="gitem ${x.cls}"><span class="g-ic">${x.ic}</span>
+    <span class="g-txt"><span class="g-name">${x.name}</span><div class="g-det">${x.det}</div></span></div>`).join('');
+  html+=`<div class="gitem manual ${manual.earnings?'checked':''}" onclick="gateToggle('earnings')">
+      <span class="g-ic">${manual.earnings?'✓':'?'}</span>
+      <span class="g-txt"><span class="g-name">No earnings within 10 sessions</span>
+      <div class="g-det">Checked the results calendar — no binary event ahead</div></span></div>
+    <div class="gitem manual ${manual.weekly?'checked':''}" onclick="gateToggle('weekly')">
+      <span class="g-ic">${manual.weekly?'✓':'?'}</span>
+      <span class="g-txt"><span class="g-name">Weekly chart is Stage 2</span>
+      <div class="g-det">Higher TF defines the stage — rising structure, not a bounce in wreckage</div></span></div>`;
+  document.getElementById('gateChecks').innerHTML=html;
+  document.getElementById('gateConfirm').disabled=!(rrPass&&stopPass&&manual.earnings&&manual.weekly);
+}
+function gateToggle(k){ if(!gateCtx)return; gateCtx.manual[k]=!gateCtx.manual[k]; renderGate(); }
+function gateCancel(){
+  if(gateCtx){ gateCtx.sel.value=gateCtx.st.status; } // revert the dropdown
+  gateCtx=null;
+  document.getElementById('gateOv').classList.remove('show');
+}
+function gateConfirmEntry(){
+  if(!gateCtx) return;
+  const {card, st, sel}=gateCtx;
+  st.status='in'; if(!st.date) st.date=today();
+  save(); sel.value='in';
+  updateStatusClass(card,'in'); recount(); applyFilterTo(card); checkFilterEmpty();
+  const di=card.querySelector('input[type="date"]'); if(di) di.value=st.date;
+  gateCtx=null;
+  document.getElementById('gateOv').classList.remove('show');
+}
+
+/* ---------------- v3: BACKUP REMINDER ---------------- */
+const BK_LAST='codex_stock_log_lastbackup', BK_SNOOZE='codex_stock_log_bksnooze';
+function checkBackupReminder(){
+  if(stocks.length<3) return;
+  let last=0,snooze=0;
+  try{last=parseInt(localStorage.getItem(BK_LAST)||'0');}catch(e){}
+  try{snooze=parseInt(localStorage.getItem(BK_SNOOZE)||'0');}catch(e){}
+  if(snooze && Date.now()<snooze) return;
+  if(last && (Date.now()-last)/86400000<10) return;
+  const banner=document.getElementById('bkBanner');
+  const msg=last?('Last backup was '+Math.floor((Date.now()-last)/86400000)+' days ago.'):'Your log lives only on this device.';
+  banner.innerHTML=`<span>${msg} A cleared browser wipes it — save a backup file.</span>
+    <button class="bk-now" onclick="exportData();hideBackupBanner()">Back up</button>
+    <button class="bk-later" onclick="snoozeBackup()">Later</button>`;
+  banner.classList.remove('hid');
+}
+function hideBackupBanner(){document.getElementById('bkBanner').classList.add('hid');}
+function snoozeBackup(){try{localStorage.setItem(BK_SNOOZE,String(Date.now()+2*86400000));}catch(e){} hideBackupBanner();}
 
 /* ---------------- ADD ---------------- */
 function addStock(){
@@ -379,6 +520,7 @@ function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 
 renderAll();
+checkBackupReminder();
 </script>
 </body>
 </html>
