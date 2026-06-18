@@ -259,7 +259,7 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
   <div id="list"></div>
 
   <footer>
-    STORED ON THIS DEVICE · v4 &nbsp;·&nbsp;
+    STORED ON THIS DEVICE · v5 &nbsp;·&nbsp;
     <a onclick="exportData()">Backup</a> &nbsp;·&nbsp;
     <a onclick="document.getElementById('imp').click()">Restore</a>
     <input id="imp" class="tps" type="file" accept="application/json" onchange="importData(event)">
@@ -619,7 +619,7 @@ function importData(ev){
 function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
 /* ---------------- SERVICE WORKER ---------------- */
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{}); }
 
 renderAll();
 syncSortBtn();
