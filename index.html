@@ -25,7 +25,7 @@ html[data-theme="dark"]{
   --bg:#0e0e0f;
   --orb1:rgba(197,162,62,.20); --orb2:rgba(62,165,119,.18);
   --ink:#f4f1ea; --muted:#8c8a86; --faint:#5f5d59;
-  --card:rgba(255,255,255,.045); --card-border:rgba(255,255,255,.10);
+  --card:rgba(255,255,255,.06); --card-border:rgba(255,255,255,.10);
   --field:rgba(0,0,0,.28); --field-border:rgba(255,255,255,.10);
   --shadow:0 8px 30px rgba(0,0,0,.35);
   --chip:rgba(255,255,255,.06);
@@ -86,12 +86,35 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 }
 .addbtn:active{transform:scale(.985);filter:brightness(1.06)}
 
+/* ---------------- SEARCH + SORT ---------------- */
+.tools{display:flex;gap:8px;margin-bottom:16px}
+.search{flex:1;position:relative;display:flex;align-items:center}
+.search .si{position:absolute;left:12px;color:var(--muted);font-size:16px;pointer-events:none;line-height:1}
+.search input{
+  width:100%;background:var(--field);border:1px solid var(--field-border);border-radius:12px;
+  color:var(--ink);padding:11px 12px 11px 34px;font-size:14px;font-family:'Manrope';transition:border-color .15s;
+}
+.search input::placeholder{color:var(--faint)}
+.search input:focus{outline:none;border-color:var(--gold)}
+.sortbtn{
+  flex:0 0 auto;display:flex;align-items:center;gap:6px;background:var(--chip);
+  border:1px solid var(--card-border);border-radius:12px;color:var(--muted);
+  font-family:'Manrope';font-weight:600;font-size:12px;padding:0 13px;cursor:pointer;white-space:nowrap;transition:all .15s;
+}
+.sortbtn .sb-ic{font-size:14px}
+.sortbtn.active{color:var(--ink);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
+
+/* priority select accents */
+.field select.pri-top{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,transparent)}
+.field select.pri-medium{color:var(--sky);border-color:color-mix(in srgb,var(--sky) 45%,transparent)}
+
 /* ---------------- STOCK CARD ---------------- */
 .card{
   position:relative;background:var(--card);border:1px solid var(--card-border);border-radius:var(--radius);
-  padding:16px 16px 14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  padding:16px 16px 14px;
   margin-bottom:14px;box-shadow:var(--shadow);
   border-left:3px solid var(--faint); transition:border-color .2s,opacity .2s,transform .2s;
+  content-visibility:auto;contain-intrinsic-size:auto 240px;
 }
 .card.s-cand{border-left-color:var(--gold)}
 .card.s-near{border-left-color:var(--sky)}
@@ -107,7 +130,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 .tk-input:focus{outline:none}
 
 .status-sel{
-  flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  flex:0 0 auto;max-width:118px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:.06em;
   text-transform:uppercase;border-radius:999px;padding:7px 11px;border:1px solid var(--card-border);
   background:var(--field);color:var(--muted);cursor:pointer;appearance:none;-webkit-appearance:none;text-align:center;
 }
@@ -221,12 +244,22 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
     <button class="chip" data-f="no"   onclick="setFilter('no',this)">Avoid <span class="n" id="c-no">0</span></button>
   </div>
 
+  <div class="tools">
+    <div class="search">
+      <span class="si">⌕</span>
+      <input id="searchBox" type="text" placeholder="Search by name…" inputmode="search" autocomplete="off" oninput="setSearch(this.value)">
+    </div>
+    <button class="sortbtn" id="sortBtn" onclick="toggleSort()" title="Sort by priority">
+      <span class="sb-ic">⇅</span><span class="sb-lbl">Recent</span>
+    </button>
+  </div>
+
   <button class="addbtn" onclick="addStock()">＋  Add a stock</button>
 
   <div id="list"></div>
 
   <footer>
-    STORED ON THIS DEVICE · v3 &nbsp;·&nbsp;
+    STORED ON THIS DEVICE · v4 &nbsp;·&nbsp;
     <a onclick="exportData()">Backup</a> &nbsp;·&nbsp;
     <a onclick="document.getElementById('imp').click()">Restore</a>
     <input id="imp" class="tps" type="file" accept="application/json" onchange="importData(event)">
@@ -253,20 +286,37 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
 const SETUPS = ["9 EMA Pullback","21 EMA Pullback","Base Breakout","VCP","Stage 2 Breakout",
   "Shakeout & Reclaim","Flat Base","Cup & Handle","High Tight Flag","Double Bottom","Ascending Base"];
 const STATUS = [
-  {v:"cand", label:"Entry candidate"},
-  {v:"near", label:"Possible · near term"},
+  {v:"cand", label:"Candidate"},
+  {v:"near", label:"Near"},
   {v:"in",   label:"Entered"},
-  {v:"no",   label:"Do not buy"}
+  {v:"no",   label:"Avoid"}
+];
+const PRIORITY = [
+  {v:"none",   label:"None"},
+  {v:"top",    label:"Top priority"},
+  {v:"medium", label:"Medium priority"}
 ];
 const KEY = 'codex_stock_log_v1';
 const TKEY = 'codex_stock_log_theme';
+const SKEY = 'codex_stock_log_sort';
 
 /* ---------------- STATE ---------------- */
 let stocks = [];
 try{ stocks = JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ stocks = []; }
 let filter = 'all';
+let searchTerm = '';
+let sortMode = 'recent';
+try{ sortMode = localStorage.getItem(SKEY) || 'recent'; }catch(e){}
 
+/* immediate write — used for structural changes (add, delete, status, priority, import) */
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(stocks)); }catch(e){} }
+/* debounced write — used while typing so we don't stringify+write on every keystroke */
+let _saveT=null;
+function saveSoon(){ clearTimeout(_saveT); _saveT=setTimeout(()=>{ _saveT=null; save(); }, 400); }
+function flushSave(){ if(_saveT){ clearTimeout(_saveT); _saveT=null; } save(); }
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) flushSave(); });
+
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 
@@ -310,6 +360,8 @@ function buildCard(st){
   const setupOpts = ['<option value="">Setup…</option>'+legacy]
     .concat(SETUPS.map(s=>`<option ${st.setup===s?'selected':''}>${s}</option>`)).join('');
   const statusOpts = STATUS.map(o=>`<option value="${o.v}" ${st.status===o.v?'selected':''}>${o.label}</option>`).join('');
+  const pv = st.priority || 'none';
+  const priOpts = PRIORITY.map(o=>`<option value="${o.v}" ${pv===o.v?'selected':''}>${o.label}</option>`).join('');
 
   card.innerHTML = `
     <div class="toprow">
@@ -324,7 +376,10 @@ function buildCard(st){
         <div class="field"><label>Setup</label><select data-k="setup">${setupOpts}</select></div>
         <div class="rr-box"><label>Risk : Reward</label><div class="rr-val rr-out">—</div></div>
       </div>
-      <div class="field span3"><label>Entry date</label><input type="date" class="num" value="${esc(st.date)}" data-k="date"></div>
+      <div class="field span3" style="grid-template-columns:none;display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div class="field"><label>Priority</label><select class="pri-sel pri-${pv}" data-k="priority">${priOpts}</select></div>
+        <div class="field"><label>Entry date</label><input type="date" class="num" value="${esc(st.date)}" data-k="date"></div>
+      </div>
     </div>
     <textarea class="note-input" placeholder="Notes — pivot, trigger, sector, anything…" data-k="note">${esc(st.note)}</textarea>
     <div class="foot"><button class="del">Delete</button></div>
@@ -340,9 +395,19 @@ function buildCard(st){
         openGate(card, st, el);
         return;
       }
-      st[k]=el.value; save();
-      if(k==='status'){ updateStatusClass(card,st.status); recount(); applyFilterTo(card); checkFilterEmpty(); }
-      if(k==='price'||k==='target'||k==='stop'){ refreshRR(card,st); }
+      st[k]=el.value;
+      if(k==='status'){
+        save(); updateStatusClass(card,st.status); recount(); applyFilterTo(card); checkFilterEmpty();
+      } else if(k==='priority'){
+        save(); el.className='pri-sel pri-'+el.value;
+        if(sortMode==='priority') reorderDOM();
+      } else if(k==='name'){
+        saveSoon(); if(searchTerm) applyFilterTo(card);
+      } else if(k==='price'||k==='target'||k==='stop'){
+        refreshRR(card,st); saveSoon();
+      } else {
+        saveSoon(); // note, date
+      }
     });
   });
   card.querySelector('.del').addEventListener('click', ()=>{
@@ -369,9 +434,27 @@ function updateStatusClass(card,status){
 
 /* ---------------- RENDER / FILTER ---------------- */
 const listEl=document.getElementById('list');
+
+/* priority ranking for sort */
+const PRI_RANK={top:0,medium:1,none:2,'':2,undefined:2};
+function orderedStocks(){
+  if(sortMode!=='priority') return stocks;
+  return stocks
+    .map((s,i)=>({s,i}))
+    .sort((a,b)=>(PRI_RANK[a.s.priority]-PRI_RANK[b.s.priority]) || (a.i-b.i))
+    .map(o=>o.s);
+}
+/* reorder existing card nodes (no rebuild — keeps inputs/focus intact) */
+function reorderDOM(){
+  orderedStocks().forEach(s=>{
+    const c=listEl.querySelector('.card[data-id="'+s.id+'"]');
+    if(c) listEl.appendChild(c);
+  });
+  const fe=document.getElementById('fempty'); if(fe) listEl.appendChild(fe);
+}
 function renderAll(){
   listEl.innerHTML='';
-  stocks.forEach(st=>listEl.appendChild(buildCard(st)));
+  orderedStocks().forEach(st=>listEl.appendChild(buildCard(st)));
   recount(); checkEmpty(); applyFilterAll();
 }
 function checkEmpty(){
@@ -394,7 +477,26 @@ function setFilter(f,btn){
 }
 function applyFilterAll(){ listEl.querySelectorAll('.card').forEach(applyFilterTo); checkFilterEmpty(); }
 function applyFilterTo(card){
-  card.style.display = (filter==='all'||card.dataset.status===filter) ? '' : 'none';
+  const statusOk = (filter==='all'||card.dataset.status===filter);
+  const nameEl=card.querySelector('.tk-input');
+  const nameVal=(nameEl?nameEl.value:'').toLowerCase();
+  const searchOk = !searchTerm || nameVal.includes(searchTerm);
+  card.style.display = (statusOk && searchOk) ? '' : 'none';
+}
+/* search */
+function setSearch(v){ searchTerm=(v||'').trim().toLowerCase(); applyFilterAll(); }
+/* sort toggle: Recent <-> Priority (sticky) */
+function toggleSort(){
+  sortMode = (sortMode==='priority') ? 'recent' : 'priority';
+  try{ localStorage.setItem(SKEY, sortMode); }catch(e){}
+  syncSortBtn();
+  reorderDOM();
+}
+function syncSortBtn(){
+  const b=document.getElementById('sortBtn'); if(!b) return;
+  const on = sortMode==='priority';
+  b.classList.toggle('active', on);
+  b.querySelector('.sb-lbl').textContent = on ? 'Priority' : 'Recent';
 }
 /* v3 fix: show a message when the active filter hides every card */
 function checkFilterEmpty(){
@@ -478,7 +580,7 @@ function snoozeBackup(){try{localStorage.setItem(BK_SNOOZE,String(Date.now()+2*8
 
 /* ---------------- ADD ---------------- */
 function addStock(){
-  const st={id:uid(),name:'',price:'',target:'',stop:'',setup:'',status:'cand',date:today(),note:''};
+  const st={id:uid(),name:'',price:'',target:'',stop:'',setup:'',status:'cand',priority:'none',date:today(),note:''};
   stocks.unshift(st); save();
   const e=listEl.querySelector('.empty'); if(e) e.remove();
   const card=buildCard(st);
@@ -504,7 +606,7 @@ function importData(ev){
       if(Array.isArray(data)){
         if(!confirm('Replace current log with backup ('+data.length+' stocks)?')) return;
         stocks=data.map(x=>({id:x.id||uid(),name:x.name||'',price:x.price||'',target:x.target||'',
-          stop:x.stop||'',setup:x.setup||'',status:x.status||'cand',date:x.date||today(),note:x.note||''}));
+          stop:x.stop||'',setup:x.setup||'',status:x.status||'cand',priority:x.priority||'none',date:x.date||today(),note:x.note||''}));
         save(); renderAll();
       } else alert('That file doesn’t look like a Stock Log backup.');
     }catch(e){ alert('Could not read that file.'); }
@@ -520,6 +622,7 @@ function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/"/g,
 if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 
 renderAll();
+syncSortBtn();
 checkBackupReminder();
 </script>
 </body>
