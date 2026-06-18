@@ -1,5 +1,5 @@
 // Service worker — network-first for the page so updates always show; cache only as offline fallback.
-const CACHE = 'codex-stock-log-v5';
+const CACHE = 'codex-stock-log-v6';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

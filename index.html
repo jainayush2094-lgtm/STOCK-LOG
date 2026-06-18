@@ -105,7 +105,7 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 .sortbtn.active{color:var(--ink);border-color:var(--gold);background:color-mix(in srgb,var(--gold) 14%,transparent)}
 
 /* priority select accents */
-.field select.pri-top{color:var(--gold);border-color:color-mix(in srgb,var(--gold) 45%,transparent)}
+.field select.pri-top{color:#ff7a1a;border-color:color-mix(in srgb,#ff7a1a 55%,transparent)}
 .field select.pri-medium{color:var(--sky);border-color:color-mix(in srgb,var(--sky) 45%,transparent)}
 
 /* ---------------- STOCK CARD ---------------- */
@@ -120,6 +120,11 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 .card.s-near{border-left-color:var(--sky)}
 .card.s-in{border-left-color:var(--emerald)}
 .card.s-no{border-left-color:var(--rose)}
+/* TOP PRIORITY — overrides the status bar with a vivid orange glow (not red = not danger) */
+.card.p-top{
+  border-left-color:#ff7a1a;border-left-width:4px;
+  box-shadow:var(--shadow), -2px 0 14px -3px rgba(255,122,26,.62);
+}
 
 .card .toprow{display:flex;align-items:center;gap:10px;margin-bottom:13px}
 .tk-input{
@@ -166,10 +171,31 @@ header{display:flex;justify-content:space-between;align-items:flex-start;margin-
 
 .note-input{
   width:100%;background:var(--field);border:1px solid var(--field-border);border-radius:11px;color:var(--ink);
-  padding:10px 12px;font-size:13.5px;font-family:'Manrope';line-height:1.5;resize:vertical;min-height:42px;
+  padding:10px 12px;font-size:13.5px;font-family:'Manrope';line-height:1.5;
+  field-sizing:content;min-height:46px;max-height:320px;overflow-y:auto;resize:vertical;
 }
 .note-input::placeholder{color:var(--faint)}
 .note-input:focus{outline:none;border-color:var(--gold)}
+
+/* progressive updates (collapsible, max 3) */
+.upd-wrap{margin-top:10px}
+.upd-toggle{
+  width:100%;text-align:left;background:none;border:1px dashed var(--field-border);border-radius:9px;
+  color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;padding:7px 11px;cursor:pointer;transition:border-color .15s,color .15s;
+}
+.upd-toggle:hover{color:var(--ink);border-color:var(--muted)}
+.upd-toggle .ub-count{color:var(--gold)}
+.upd-body{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.upd-row{display:flex;flex-direction:column;gap:3px}
+.upd-row label{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);font-weight:600;padding-left:2px}
+.upd-input{
+  width:100%;background:var(--field);border:1px solid var(--field-border);border-radius:10px;color:var(--ink);
+  padding:8px 11px;font-size:13px;font-family:'Manrope';line-height:1.5;
+  field-sizing:content;min-height:36px;max-height:220px;overflow-y:auto;resize:none;
+}
+.upd-input::placeholder{color:var(--faint)}
+.upd-input:focus{outline:none;border-color:var(--gold)}
 
 .card .foot{display:flex;justify-content:flex-end;margin-top:9px}
 .del{background:none;border:none;color:var(--faint);font-family:'JetBrains Mono',monospace;font-size:10.5px;
@@ -259,7 +285,7 @@ footer a{color:var(--muted);text-decoration:none;cursor:pointer;border-bottom:1p
   <div id="list"></div>
 
   <footer>
-    STORED ON THIS DEVICE · v5 &nbsp;·&nbsp;
+    STORED ON THIS DEVICE · v6 &nbsp;·&nbsp;
     <a onclick="exportData()">Backup</a> &nbsp;·&nbsp;
     <a onclick="document.getElementById('imp').click()">Restore</a>
     <input id="imp" class="tps" type="file" accept="application/json" onchange="importData(event)">
@@ -353,8 +379,9 @@ function pct(price,other){
 /* ---------------- CARD ---------------- */
 function buildCard(st){
   const card=document.createElement('div');
-  card.className='card s-'+st.status;
-  card.dataset.id=st.id; card.dataset.status=st.status;
+  const pv0 = st.priority || 'none';
+  card.dataset.id=st.id; card.dataset.status=st.status; card.dataset.pri=pv0;
+  card.className='card s-'+st.status+priClass(pv0);
 
   const legacy = (st.setup && !SETUPS.includes(st.setup)) ? `<option selected>${esc(st.setup)}</option>` : '';
   const setupOpts = ['<option value="">Setup…</option>'+legacy]
@@ -382,8 +409,28 @@ function buildCard(st){
       </div>
     </div>
     <textarea class="note-input" placeholder="Notes — pivot, trigger, sector, anything…" data-k="note">${esc(st.note)}</textarea>
+    <div class="upd-wrap">
+      <button type="button" class="upd-toggle">＋ Updates</button>
+      <div class="upd-body" hidden>
+        <div class="upd-row"><label>Update 1</label><textarea class="upd-input" placeholder="date · price · what changed" data-k="u1">${esc(st.u1||'')}</textarea></div>
+        <div class="upd-row"><label>Update 2</label><textarea class="upd-input" placeholder="date · price · what changed" data-k="u2">${esc(st.u2||'')}</textarea></div>
+        <div class="upd-row"><label>Update 3</label><textarea class="upd-input" placeholder="date · price · what changed" data-k="u3">${esc(st.u3||'')}</textarea></div>
+      </div>
+    </div>
     <div class="foot"><button class="del">Delete</button></div>
   `;
+
+  // updates collapsible
+  function updCount(){ return [st.u1,st.u2,st.u3].filter(v=>v&&String(v).trim()).length; }
+  const updBody=card.querySelector('.upd-body');
+  const updToggle=card.querySelector('.upd-toggle');
+  function syncUpdToggle(){
+    const n=updCount();
+    updToggle.innerHTML=(updBody.hidden?'＋':'–')+' Updates'+(n?' <span class="ub-count">· '+n+'</span>':'');
+  }
+  if(updCount()>0) updBody.hidden=false;
+  syncUpdToggle();
+  updToggle.addEventListener('click', ()=>{ updBody.hidden=!updBody.hidden; syncUpdToggle(); });
 
   // wire inputs/selects
   card.querySelectorAll('[data-k]').forEach(el=>{
@@ -400,11 +447,14 @@ function buildCard(st){
         save(); updateStatusClass(card,st.status); recount(); applyFilterTo(card); checkFilterEmpty();
       } else if(k==='priority'){
         save(); el.className='pri-sel pri-'+el.value;
+        card.dataset.pri=el.value; applyCardClasses(card);
         if(sortMode==='priority') reorderDOM();
       } else if(k==='name'){
         saveSoon(); if(searchTerm) applyFilterTo(card);
       } else if(k==='price'||k==='target'||k==='stop'){
         refreshRR(card,st); saveSoon();
+      } else if(k==='u1'||k==='u2'||k==='u3'){
+        saveSoon(); syncUpdToggle();
       } else {
         saveSoon(); // note, date
       }
@@ -428,8 +478,12 @@ function refreshRR(card,st){
   card.querySelector('.t-sub').textContent=pct(st.price,st.target);
   card.querySelector('.s-sub').textContent=pct(st.price,st.stop);
 }
+function priClass(p){ return p==='top' ? ' p-top' : p==='medium' ? ' p-medium' : ''; }
+function applyCardClasses(card){
+  card.className='card s-'+(card.dataset.status||'cand')+priClass(card.dataset.pri);
+}
 function updateStatusClass(card,status){
-  card.className='card s-'+status; card.dataset.status=status;
+  card.dataset.status=status; applyCardClasses(card);
 }
 
 /* ---------------- RENDER / FILTER ---------------- */
@@ -580,7 +634,7 @@ function snoozeBackup(){try{localStorage.setItem(BK_SNOOZE,String(Date.now()+2*8
 
 /* ---------------- ADD ---------------- */
 function addStock(){
-  const st={id:uid(),name:'',price:'',target:'',stop:'',setup:'',status:'cand',priority:'none',date:today(),note:''};
+  const st={id:uid(),name:'',price:'',target:'',stop:'',setup:'',status:'cand',priority:'none',date:today(),note:'',u1:'',u2:'',u3:''};
   stocks.unshift(st); save();
   const e=listEl.querySelector('.empty'); if(e) e.remove();
   const card=buildCard(st);
@@ -606,7 +660,8 @@ function importData(ev){
       if(Array.isArray(data)){
         if(!confirm('Replace current log with backup ('+data.length+' stocks)?')) return;
         stocks=data.map(x=>({id:x.id||uid(),name:x.name||'',price:x.price||'',target:x.target||'',
-          stop:x.stop||'',setup:x.setup||'',status:x.status||'cand',priority:x.priority||'none',date:x.date||today(),note:x.note||''}));
+          stop:x.stop||'',setup:x.setup||'',status:x.status||'cand',priority:x.priority||'none',date:x.date||today(),note:x.note||'',
+          u1:x.u1||'',u2:x.u2||'',u3:x.u3||''}));
         save(); renderAll();
       } else alert('That file doesn’t look like a Stock Log backup.');
     }catch(e){ alert('Could not read that file.'); }
